@@ -14,6 +14,7 @@ class RegisterController extends Controller
     public function __construct()
     {
         parent::__construct();
+        Auth::checkAdminAuthentication();
     }
 
     /**
@@ -22,11 +23,7 @@ class RegisterController extends Controller
      */
     public function index()
     {
-        if (LoginModel::isUserLoggedIn()) {
-            Redirect::home();
-        } else {
             $this->View->render('register/index');
-        }
     }
 
     /**
