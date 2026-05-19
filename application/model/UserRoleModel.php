@@ -41,8 +41,8 @@ class UserRoleModel
      */
     public static function saveRoleToDatabase($type)
     {
-        // if $type is not 1 or 2
-        if (!in_array($type, [1, 2])) {
+        // if $type is not 1, 2 or 7
+        if (!in_array($type, [1, 2, 7])) {
             return false;
         }
 

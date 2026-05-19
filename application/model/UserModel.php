@@ -19,7 +19,7 @@ class UserModel
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT user_id, user_name, user_email, user_active, user_has_avatar, user_deleted FROM users";
+        $sql = "SELECT user_id, user_name, user_account_type, user_email, user_active, user_has_avatar, user_deleted FROM users";
         $query = $database->prepare($sql);
         $query->execute();
 
@@ -36,12 +36,33 @@ class UserModel
             $all_users_profiles[$user->user_id]->user_id = $user->user_id;
             $all_users_profiles[$user->user_id]->user_name = $user->user_name;
             $all_users_profiles[$user->user_id]->user_email = $user->user_email;
+            $all_users_profiles[$user->user_id]->user_account_type = $user->user_account_type;
             $all_users_profiles[$user->user_id]->user_active = $user->user_active;
             $all_users_profiles[$user->user_id]->user_deleted = $user->user_deleted;
             $all_users_profiles[$user->user_id]->user_avatar_link = (Config::get('USE_GRAVATAR') ? AvatarModel::getGravatarLinkByEmail($user->user_email) : AvatarModel::getPublicAvatarFilePathOfUser($user->user_has_avatar, $user->user_id));
         }
 
         return $all_users_profiles;
+    }
+
+    /**
+     * Get a human-readable role label for a given account type ID.
+     *
+     * @param int $type
+     * @return string
+     */
+    public static function getRoleLabel($type)
+    {
+        switch ($type) {
+            case 7:
+                return 'Admin';
+            case 2:
+                return 'User';
+            case 1:
+                return 'Gast';
+            default:
+                return 'Unbekannt';
+        }
     }
 
     /**
@@ -53,7 +74,7 @@ class UserModel
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT user_id, user_name, user_email, user_active, user_has_avatar, user_deleted
+        $sql = "SELECT user_id, user_name, user_account_type, user_email, user_active, user_has_avatar, user_deleted
                 FROM users WHERE user_id = :user_id LIMIT 1";
         $query = $database->prepare($sql);
         $query->execute(array(':user_id' => $user_id));

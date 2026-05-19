@@ -14,18 +14,43 @@
             In a real world application you would implement something like a
             pay-process.
         </p>
-	    <p>
-		    Please note: This whole process has been renamed from AccountType (v3.0) to UserRole (v3.1).
-	    </p>
+        <p>
+            Please note: This whole process has been renamed from AccountType (v3.0) to UserRole (v3.1).
+        </p>
 
-        <h2>Currently your account type is: <?php echo Session::get('user_account_type'); ?></h2>
-        <!-- basic implementation for two account types: type 1 and type 2 -->
-	    <form action="<?php echo Config::get('URL'); ?>user/changeUserRole_action" method="post">
-            <?php if (Session::get('user_account_type') == 1) { ?>
-                <input type="submit" name="user_account_upgrade" value="Upgrade my account (to Premium User)" />
-	        <?php } else if (Session::get('user_account_type') == 2) { ?>
-	            <input type="submit" name="user_account_downgrade" value="Downgrade my account (to Basic User)" />
-	        <?php } ?>
-	    </form>
+        <?php
+        $currentRole = Session::get('user_account_type');
+        $isAdmin = $currentRole == 7;
+
+        function getRoleLabel($type)
+        {
+            switch ($type) {
+                case 7:
+                    return 'Admin';
+                case 2:
+                    return 'User';
+                case 1:
+                    return 'Gast';
+                default:
+                    return 'Unbekannt';
+            }
+        }
+        ?>
+
+        <h2>Currently your account type is: <?php echo getRoleLabel($currentRole); ?> (<?php echo $currentRole; ?>)</h2>
+        <form action="<?php echo Config::get('URL'); ?>user/changeUserRole_action" method="post">
+            <label for="user_account_type">Choose account type:</label>
+            <select id="user_account_type" name="user_account_type"<?php echo !$isAdmin ? ' disabled="disabled"' : ''; ?>>
+                <option value="1"<?php echo $currentRole == 1 ? ' selected' : ''; ?>>Gast</option>
+                <option value="2"<?php echo $currentRole == 2 ? ' selected' : ''; ?>>User</option>
+                <option value="7"<?php echo $currentRole == 7 ? ' selected' : ''; ?>>Admin</option>
+            </select>
+
+            <?php if ($isAdmin) { ?>
+                <input type="submit" value="Aendern" />
+            <?php } else { ?>
+                <span>ReadOnly</span>
+            <?php } ?>
+        </form>
     </div>
 </div>

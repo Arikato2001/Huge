@@ -11,8 +11,9 @@ class AdminModel
      * @param $suspensionInDays
      * @param $softDelete
      * @param $userId
+     * @param $accountType
      */
-    public static function setAccountSuspensionAndDeletionStatus($suspensionInDays, $softDelete, $userId)
+    public static function setAccountSuspensionAndDeletionStatus($suspensionInDays, $softDelete, $userId, $accountType)
     {
 
         // Prevent to suspend or delete own account.
@@ -35,8 +36,14 @@ class AdminModel
             $delete = 0;
         }
 
+        $accountType = intval($accountType);
+        if (!in_array($accountType, [1, 2, 7])) {
+            Session::add('feedback_negative', Text::get('FEEDBACK_ACCOUNT_TYPE_CHANGE_FAILED'));
+            return false;
+        }
+
         // write the above info to the database
-        self::writeDeleteAndSuspensionInfoToDatabase($userId, $suspensionTime, $delete);
+        self::writeAccountSettingsToDatabase($userId, $suspensionTime, $delete, $accountType);
 
         // if suspension or deletion should happen, then also kick user out of the application instantly by resetting
         // the user's session :)
@@ -53,14 +60,15 @@ class AdminModel
      * @param $delete
      * @return bool
      */
-    private static function writeDeleteAndSuspensionInfoToDatabase($userId, $suspensionTime, $delete)
+    private static function writeAccountSettingsToDatabase($userId, $suspensionTime, $delete, $accountType)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $query = $database->prepare("UPDATE users SET user_suspension_timestamp = :user_suspension_timestamp, user_deleted = :user_deleted  WHERE user_id = :user_id LIMIT 1");
+        $query = $database->prepare("UPDATE users SET user_suspension_timestamp = :user_suspension_timestamp, user_deleted = :user_deleted, user_account_type = :user_account_type WHERE user_id = :user_id LIMIT 1");
         $query->execute(array(
                 ':user_suspension_timestamp' => $suspensionTime,
                 ':user_deleted' => $delete,
+                ':user_account_type' => $accountType,
                 ':user_id' => $userId
         ));
 

@@ -17,6 +17,7 @@
                     <td>Id</td>
                     <td>Avatar</td>
                     <td>Username</td>
+                    <td>Usertype</td>
                     <td>User's email</td>
                     <td>Activated ?</td>
                     <td>Link to user's profile</td>
@@ -31,6 +32,7 @@
                             <?php } ?>
                         </td>
                         <td><?= $user->user_name; ?></td>
+                        <td><?= UserModel::getRoleLabel($user->user_account_type); ?></td>
                         <td><?= $user->user_email; ?></td>
                         <td><?= ($user->user_active == 0 ? 'No' : 'Yes'); ?></td>
                         <td>

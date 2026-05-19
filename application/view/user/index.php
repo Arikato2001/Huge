@@ -16,6 +16,6 @@
                 Your avatar pic (saved locally): <img src='<?= $this->user_avatar_file; ?>' />
             <?php } ?>
         </div>
-        <div>Your account type is: <?= $this->user_account_type; ?></div>
+        <div>Your account type is: <?= UserModel::getRoleLabel($this->user_account_type); ?> (<?= $this->user_account_type; ?>)</div>
     </div>
 </div>

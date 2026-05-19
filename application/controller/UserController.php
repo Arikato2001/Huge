@@ -117,15 +117,14 @@ class UserController extends Controller
      */
     public function changeUserRole_action()
     {
-        if (Request::post('user_account_upgrade')) {
-            // "2" is quick & dirty account type 2, something like "premium user" maybe. you got the idea :)
-            UserRoleModel::changeUserRole(2);
+        if (Session::get('user_account_type') != 7) {
+            Session::add('feedback_negative', Text::get('FEEDBACK_ACCOUNT_TYPE_CHANGE_FAILED'));
+            Redirect::to('user/changeUserRole');
+            return;
         }
 
-        if (Request::post('user_account_downgrade')) {
-            // "1" is quick & dirty account type 1, something like "basic user" maybe.
-            UserRoleModel::changeUserRole(1);
-        }
+        $newAccountType = intval(Request::post('user_account_type'));
+        UserRoleModel::changeUserRole($newAccountType);
 
         Redirect::to('user/changeUserRole');
     }
