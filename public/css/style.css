@@ -138,6 +138,20 @@ body {
     height: 40px;
 }
 
+.dataTables_wrapper {
+    margin-top: 20px;
+}
+
+.dataTables_wrapper .overview-table,
+.dataTables_wrapper .note-table {
+    width: 100%;
+}
+
+.dataTables_wrapper select,
+.dataTables_wrapper input {
+    border: 1px solid #ccc;
+}
+
 /* feedback boxes */
 .feedback {
     padding: 30px;
