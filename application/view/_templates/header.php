@@ -29,6 +29,9 @@
                 <li <?php if (View::checkForActiveController($filename, "dashboard")) { echo ' class="active" '; } ?> >
                     <a href="<?php echo Config::get('URL'); ?>dashboard/index">Dashboard</a>
                 </li>
+                <li <?php if (View::checkForActiveController($filename, "index")) { echo ' class="active" '; } ?> >
+                    <a href="<?php echo Config::get('URL'); ?>chat/index">Chat</a>
+                </li>
                 <li <?php if (View::checkForActiveController($filename, "note")) { echo ' class="active" '; } ?> >
                     <a href="<?php echo Config::get('URL'); ?>note/index">My Notes</a>
                 </li>
