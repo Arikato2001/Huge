@@ -10,17 +10,26 @@ class NoteModel
      * Get all notes (notes are just example data that the user has created)
      * @return array an array with several objects (the results)
      */
+    
     public static function getAllNotes()
-    {
-        $database = DatabaseFactory::getFactory()->getConnection();
-
-        $sql = "SELECT user_id, note_id, note_text FROM notes WHERE user_id = :user_id";
-        $query = $database->prepare($sql);
-        $query->execute(array(':user_id' => Session::get('user_id')));
-
-        // fetchAll() is the PDO method that gets all result rows
-        return $query->fetchAll();
+{
+    $database = DBFactoryMySQLI::getFactory()->getConnection();
+    $sql = "SELECT user_id, note_id, note_text 
+            FROM notes 
+            WHERE user_id = ?";
+    $query = $database->prepare($sql);
+    $user_id = Session::get('user_id');
+    // "i" = integer
+    $query->bind_param("i", $user_id);
+    $query->execute();
+    $result = $query->get_result();
+    $notes = [];
+    while ($row = $result->fetch_object()) {
+        $notes[] = $row;
     }
+
+    return $notes;
+}
 
     /**
      * Get a single note
