@@ -8,6 +8,7 @@ class ChatController extends Controller
     public function __construct()
     {
         parent::__construct();
+        Auth::checkAuthentication();
     }
 
     /**
@@ -23,7 +24,8 @@ class ChatController extends Controller
         }
 
         $this->View->render('chat/index', array(
-            'users' => $users)
+            'users' => $users,
+            'group_chat' => ChatModel::getDefaultGroupChatOverview())
         );
     }
 
@@ -43,6 +45,16 @@ class ChatController extends Controller
         }
     }
 
+    /**
+     * Shows the fixed default group chat.
+     */
+    public function showGroupChat()
+    {
+        $this->View->render('chat/showChat', array(
+            'user_chat' => ChatModel::getDefaultGroupChat())
+        );
+    }
+
         /**
      * This method controls what happens when you move to /overview/showChat in your app.
      * Saves the chat with other users
@@ -54,5 +66,16 @@ class ChatController extends Controller
         ChatModel::saveMessage($user_id, $message);
 
         Redirect::to('chat/showChat/' . $user_id);
+    }
+
+     /**
+     * Saves a message in the fixed default group chat.
+     */
+    public function saveNewGroupMessage()
+    {   
+        $message = trim(Request::post('chat_message'));
+        ChatModel::saveNewGroupMessage($message);
+
+        Redirect::to('chat/showGroupChat');
     }
 }

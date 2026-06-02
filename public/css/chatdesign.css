@@ -25,6 +25,14 @@ html { font-family: 'PT Sans', Georgia, serif; }
 	background-color: #efefef;
 }
 
+.discussion > .bubble .message-sender-name {
+	display: block;
+	font-size: 0.78em;
+	font-weight: bold;
+	margin-bottom: 0.1em;
+	opacity: 0.85;
+}
+
 .discussion > .bubble.sender.first { border-bottom-left-radius: 0.1em; }
 .discussion > .bubble.sender.last { border-top-left-radius: 0.1em; }
 .discussion > .bubble.sender.middle {
@@ -74,4 +82,12 @@ html { font-family: 'PT Sans', Georgia, serif; }
 	text-align: center;
 	box-sizing: border-box;
 	text-decoration: none;
+
+	
+}
+
+.chat-group-row td {
+	background-color: #8cdd67;
+	font-weight: bold;
+	border-bottom: 10px solid #fff;
 }

@@ -1,6 +1,3 @@
-<head>
-    <link rel="stylesheet" href="<?php echo Config::get('URL'); ?>css/chat.css" />
-</head>
 <div class="container">
     <h1>ChatController/index</h1>
     <div class="box">
@@ -17,6 +14,18 @@
                     <td>Chat</td>
                 </tr>
                 </thead>
+                   <tr class="chat-group-row active">
+                    <td></td>
+                    <td><?= htmlentities($this->group_chat->name); ?></td>
+                    <td>
+                        <a class="chat-link" href="<?= Config::get('URL'); ?>chat/showGroupChat">
+                            Chat
+                            <?php if ($this->group_chat->unseen_messages > 0) { ?>
+                                <span class="chat-unread-count"><?= $this->group_chat->unseen_messages; ?></span>
+                            <?php } ?>
+                        </a>
+                    </td>
+                </tr>
                 <?php foreach ($this->users as $user) { 
                     if (Session::get("user_id") !== $user->user_id) {?>
                     <tr class="<?= ($user->user_active == 0 ? 'inactive' : 'active'); ?>">
