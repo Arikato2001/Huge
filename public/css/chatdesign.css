@@ -1,0 +1,77 @@
+html { font-family: 'PT Sans', Georgia, serif; }
+
+.discussion {
+	max-width: 600px;
+	margin: 0 auto;
+	
+	display: flex;
+	flex-flow: column wrap;
+}
+
+.discussion > .bubble {
+	border-radius: 1em;
+	padding: 0.25em 0.75em;
+	margin: 0.0625em;
+	max-width: 50%;
+}
+
+.discussion > .bubble.sender {
+	align-self: flex-start;
+	background-color: cornflowerblue;
+	color: #fff;
+}
+.discussion > .bubble.recipient {
+	align-self: flex-end;
+	background-color: #efefef;
+}
+
+.discussion > .bubble.sender.first { border-bottom-left-radius: 0.1em; }
+.discussion > .bubble.sender.last { border-top-left-radius: 0.1em; }
+.discussion > .bubble.sender.middle {
+	border-bottom-left-radius: 0.1em;
+ 	border-top-left-radius: 0.1em;
+}
+
+.discussion > .bubble.recipient.first { border-bottom-right-radius: 0.1em; }
+.discussion > .bubble.recipient.last { border-top-right-radius: 0.1em; }
+.discussion > .bubble.recipient.middle {
+	border-bottom-right-radius: 0.1em;
+	border-top-right-radius: 0.1em;
+}
+
+.input {
+	max-width: 600px;
+	margin: 0.75em auto 0;
+	display: flex;
+	gap: 0.5em;
+}
+
+.input input {
+	flex: 1;
+	min-width: 0;
+}
+
+.container a.chat-link {
+	position: relative;
+	display: inline-block;
+	padding-right: 12px;
+	line-height: 16px;
+}
+
+.container a.chat-link .chat-unread-count {
+	position: absolute;
+	top: -10px;
+	right: -8px;
+	min-width: 16px;
+	height: 16px;
+	padding: 0 4px;
+	border-radius: 999px;
+	background-color: #d71920;
+	color: #fff;
+	font-size: 11px;
+	font-weight: bold;
+	line-height: 16px;
+	text-align: center;
+	box-sizing: border-box;
+	text-decoration: none;
+}

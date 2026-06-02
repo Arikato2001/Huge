@@ -9,6 +9,9 @@
     <!-- CSS -->
     <link rel="stylesheet" href="<?php echo Config::get('URL'); ?>css/style.css" />
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" />
+    <?php if (View::checkForActiveController($filename, "chat")) { ?>
+        <link rel="stylesheet" href="<?php echo Config::get('URL'); ?>css/chat.css?v=3" />
+    <?php } ?>
 </head>
 <body>
     <!-- wrapper, to center website -->
@@ -29,7 +32,7 @@
                 <li <?php if (View::checkForActiveController($filename, "dashboard")) { echo ' class="active" '; } ?> >
                     <a href="<?php echo Config::get('URL'); ?>dashboard/index">Dashboard</a>
                 </li>
-                <li <?php if (View::checkForActiveController($filename, "index")) { echo ' class="active" '; } ?> >
+                <li <?php if (View::checkForActiveController($filename, "chat")) { echo ' class="active" '; } ?> >
                     <a href="<?php echo Config::get('URL'); ?>chat/index">Chat</a>
                 </li>
                 <li <?php if (View::checkForActiveController($filename, "note")) { echo ' class="active" '; } ?> >
