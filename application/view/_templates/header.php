@@ -12,6 +12,9 @@
     <?php if (View::checkForActiveController($filename, "chat")) { ?>
         <link rel="stylesheet" href="<?php echo Config::get('URL'); ?>css/chatdesign.css?v=3" />
     <?php } ?>
+    <?php if (View::checkForActiveController($filename, "gallery")) { ?>
+        <link rel="stylesheet" href="<?php echo Config::get('URL'); ?>css/gallery.css?v=1" />
+    <?php } ?>
 </head>
 <body>
     <!-- wrapper, to center website -->
@@ -37,6 +40,9 @@
                 </li>
                 <li <?php if (View::checkForActiveController($filename, "note")) { echo ' class="active" '; } ?> >
                     <a href="<?php echo Config::get('URL'); ?>note/index">My Notes</a>
+                </li>
+                <li <?php if (View::checkForActiveController($filename, "gallery")) { echo ' class="active" '; } ?> >
+                    <a href="<?php echo Config::get('URL'); ?>gallery/index">Gallery</a>
                 </li>
             <?php } else { ?>
                 <!-- for not logged in users -->
