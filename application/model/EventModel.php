@@ -139,6 +139,102 @@ class EventModel
         return true;
     }
 
+    public static function registerParticipant($eventId, $participantName, $participantEmail, $userId = null)
+    {
+        // Prueft die Teilnehmerdaten vor der Anmeldung, damit nur vollstaendige Anmeldungen gespeichert werden.
+        if (!self::validateRegistration($eventId, $participantName, $participantEmail)) {
+            return false;
+        }
+
+        $database = DatabaseFactory::getFactory()->getConnection();
+        $database->beginTransaction();
+
+        // Sperrt das Event waehrend der Limitpruefung, damit parallele Anmeldungen keine Ueberbuchung erzeugen.
+        $eventQuery = $database->prepare("SELECT event_max_participants FROM events WHERE event_id = :event_id LIMIT 1 FOR UPDATE");
+        $eventQuery->execute(array(':event_id' => (int)$eventId));
+        $event = $eventQuery->fetch();
+
+        if (!$event) {
+            $database->rollBack();
+            Session::add('feedback_negative', 'Event wurde nicht gefunden.');
+            return false;
+        }
+
+        // Zaehlt aktuelle Anmeldungen innerhalb der Transaktion, damit das Limit auf dem neuesten Stand ist.
+        $countQuery = $database->prepare("SELECT COUNT(*) AS participant_count FROM event_registrations WHERE event_id = :event_id");
+        $countQuery->execute(array(':event_id' => (int)$eventId));
+        $participantCount = (int)$countQuery->fetch()->participant_count;
+
+        if ($participantCount >= (int)$event->event_max_participants) {
+            $database->rollBack();
+            Session::add('feedback_negative', 'Event ist bereits voll.');
+            return false;
+        }
+
+        // Verhindert doppelte Anmeldungen mit derselben E-Mail-Adresse fuer dasselbe Event.
+        if (self::registrationExists($eventId, $participantEmail, $userId)) {
+            $database->rollBack();
+            Session::add('feedback_negative', 'Diese Anmeldung existiert bereits.');
+            return false;
+        }
+
+        $sql = "INSERT INTO event_registrations (event_id, user_id, participant_name, participant_email)
+                VALUES (:event_id, :user_id, :participant_name, :participant_email)";
+        $query = $database->prepare($sql);
+        $query->execute(array(
+            ':event_id' => (int)$eventId,
+            ':user_id' => $userId ? (int)$userId : null,
+            ':participant_name' => trim($participantName),
+            ':participant_email' => trim($participantEmail)
+        ));
+
+        if ($query->rowCount() === 1) {
+            $database->commit();
+            Session::add('feedback_positive', 'Anmeldung wurde gespeichert.');
+            return true;
+        }
+
+        $database->rollBack();
+        Session::add('feedback_negative', 'Anmeldung konnte nicht gespeichert werden.');
+        return false;
+    }
+
+    public static function unregisterParticipant($eventId, $participantEmail, $userId = null)
+    {
+        // Prueft Event-ID und E-Mail, damit nur gezielte Abmeldungen verarbeitet werden.
+        if (!ctype_digit((string)$eventId) || !filter_var($participantEmail, FILTER_VALIDATE_EMAIL)) {
+            Session::add('feedback_negative', 'Ungueltige Abmeldedaten.');
+            return false;
+        }
+
+        // Loescht die Anmeldung per E-Mail und optionaler User-ID, damit Besucher und eingeloggte User abmelden koennen.
+        $database = DatabaseFactory::getFactory()->getConnection();
+        $sql = "DELETE FROM event_registrations
+                WHERE event_id = :event_id
+                  AND participant_email = :participant_email";
+        $parameters = array(
+            ':event_id' => (int)$eventId,
+            ':participant_email' => trim($participantEmail)
+        );
+
+        if ($userId) {
+            $sql .= " AND (user_id = :user_id OR user_id IS NULL)";
+            $parameters[':user_id'] = (int)$userId;
+        }
+
+        $sql .= " LIMIT 1";
+        $query = $database->prepare($sql);
+        $query->execute($parameters);
+
+        if ($query->rowCount() === 1) {
+            Session::add('feedback_positive', 'Anmeldung wurde storniert.');
+            return true;
+        }
+
+        Session::add('feedback_negative', 'Anmeldung konnte nicht gefunden werden.');
+        return false;
+    }
+
     public static function deleteEvent($eventId)
     {
         // Prueft die ID vor dem Loeschen, damit keine ungueltigen Werte an SQL uebergeben werden.
@@ -167,6 +263,52 @@ class EventModel
     {
         // Wandelt gueltige Datumsangaben in das MySQL-DATETIME-Format um.
         return date('Y-m-d H:i:s', strtotime($eventDate));
+    }
+
+    private static function registrationExists($eventId, $participantEmail, $userId = null)
+    {
+        // Prueft vorhandene Anmeldungen, damit E-Mail oder eingeloggter User nicht doppelt gebucht werden.
+        $database = DatabaseFactory::getFactory()->getConnection();
+        $sql = "SELECT registration_id
+                FROM event_registrations
+                WHERE event_id = :event_id
+                  AND (participant_email = :participant_email";
+        $parameters = array(
+            ':event_id' => (int)$eventId,
+            ':participant_email' => trim($participantEmail)
+        );
+
+        if ($userId) {
+            $sql .= " OR user_id = :user_id";
+            $parameters[':user_id'] = (int)$userId;
+        }
+
+        $sql .= ") LIMIT 1";
+        $query = $database->prepare($sql);
+        $query->execute($parameters);
+
+        return (bool)$query->fetch();
+    }
+
+    private static function validateRegistration($eventId, $participantName, $participantEmail)
+    {
+        // Validiert die AP5-Pflichtdaten, damit Name, E-Mail und Event-ID vor dem Insert stimmen.
+        if (!ctype_digit((string)$eventId)) {
+            Session::add('feedback_negative', 'Ungueltige Event-ID.');
+            return false;
+        }
+
+        if (!trim((string)$participantName)) {
+            Session::add('feedback_negative', 'Bitte gib einen Namen ein.');
+            return false;
+        }
+
+        if (!filter_var($participantEmail, FILTER_VALIDATE_EMAIL)) {
+            Session::add('feedback_negative', 'Bitte gib eine gueltige E-Mail-Adresse ein.');
+            return false;
+        }
+
+        return true;
     }
 
     private static function validateEvent($title, $description, $eventDate, $location, $maxParticipants)
