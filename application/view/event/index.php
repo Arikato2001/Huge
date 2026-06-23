@@ -15,6 +15,36 @@
     <!-- Gibt Erfolgs- oder Fehlermeldungen aus vorherigen Aktionen aus. -->
     <?php $this->renderFeedbackMessages(); ?>
 
+    <!-- Die Filter werden als GET-Parameter gesendet, damit die Suche verlinkt und zurueckgesetzt werden kann. -->
+    <form action="<?php echo Config::get('URL'); ?>event/index" method="get" class="event-search">
+        <label class="event-search-title">
+            Eventtitel
+            <input type="search" name="title" value="<?php echo $this->encodeHTML($this->filters['title']); ?>" placeholder="Titel suchen ..." />
+        </label>
+        <label>
+            Datum
+            <input type="date" name="date" value="<?php echo $this->encodeHTML($this->filters['date']); ?>" />
+        </label>
+        <label>
+            Ort
+            <select name="location">
+                <option value="">Alle Orte</option>
+                <?php foreach ($this->locations as $location) { ?>
+                    <option value="<?php echo $this->encodeHTML($location->event_location); ?>"<?php if ($this->filters['location'] === $location->event_location) { echo ' selected'; } ?>>
+                        <?php echo $this->encodeHTML($location->event_location); ?>
+                    </option>
+                <?php } ?>
+            </select>
+        </label>
+        <div class="event-search-actions">
+            <button type="submit">Ergebnisse anzeigen</button>
+            <a href="<?php echo Config::get('URL'); ?>event/index">Zuruecksetzen</a>
+        </div>
+    </form>
+
+    <!-- Zeigt, wie viele Events nach Anwendung der Filter uebrig bleiben. -->
+    <p class="event-result-count"><?php echo count($this->events); ?> Event<?php echo count($this->events) === 1 ? '' : 's'; ?> gefunden</p>
+
     <!-- Erstellt fuer jedes vorhandene Event eine eigene Vorschaukarte. -->
     <?php if ($this->events) { ?>
         <div class="event-grid">
@@ -42,7 +72,10 @@
             <?php } ?>
         </div>
     <?php } else { ?>
-        <!-- Dieser Platzhalter verhindert eine leere Seite, solange noch keine Events existieren. -->
-        <div class="event-empty">Aktuell sind keine Events eingetragen.</div>
+        <!-- Unterscheidet zwischen einer erfolglosen Suche und einer komplett leeren Eventliste. -->
+        <?php $hasFilters = $this->filters['title'] !== '' || $this->filters['date'] !== '' || $this->filters['location'] !== ''; ?>
+        <div class="event-empty">
+            <?php echo $hasFilters ? 'Keine Events entsprechen den ausgewaehlten Filtern.' : 'Aktuell sind keine Events eingetragen.'; ?>
+        </div>
     <?php } ?>
 </div>

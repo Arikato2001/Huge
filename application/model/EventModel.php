@@ -4,17 +4,59 @@ class EventModel
 {
     public static function getAllEvents()
     {
-        // Liest alle Events mit Teilnehmeranzahl, damit die Verwaltung freie Plaetze anzeigen kann.
+        // Verwendet dieselbe Abfrage wie die Suche, jedoch ohne eingeschraenkte Suchkriterien.
+        return self::searchEvents();
+    }
+
+    public static function searchEvents($title = '', $date = '', $location = '')
+    {
+        // Baut die Bedingungen einzeln auf, damit leere Filter keinen Einfluss auf das Ergebnis haben.
         $database = DatabaseFactory::getFactory()->getConnection();
+        $conditions = array();
+        $parameters = array();
+
+        if (trim((string)$title) !== '') {
+            $conditions[] = 'e.event_title LIKE :title';
+            $parameters[':title'] = '%' . trim($title) . '%';
+        }
+
+        // Akzeptiert nur das Format des HTML-Datumsfeldes und ignoriert manipulierte Datumswerte.
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$date)) {
+            $conditions[] = 'DATE(e.event_date) = :event_date';
+            $parameters[':event_date'] = $date;
+        }
+
+        if (trim((string)$location) !== '') {
+            $conditions[] = 'e.event_location = :location';
+            $parameters[':location'] = trim($location);
+        }
+
+        // Verbindet mehrere aktive Filter mit AND, damit alle Kriterien gleichzeitig zutreffen muessen.
+        $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
         $sql = "SELECT e.event_id, e.event_title, e.event_description, e.event_date, e.event_location,
                        e.event_max_participants, e.event_created_at,
                        COUNT(r.registration_id) AS participant_count,
                        (e.event_max_participants - COUNT(r.registration_id)) AS available_places
                 FROM events e
                 LEFT JOIN event_registrations r ON r.event_id = e.event_id
+                " . $where . "
                 GROUP BY e.event_id, e.event_title, e.event_description, e.event_date, e.event_location,
                          e.event_max_participants, e.event_created_at
                 ORDER BY e.event_date ASC, e.event_id DESC";
+        $query = $database->prepare($sql);
+        $query->execute($parameters);
+
+        return $query->fetchAll();
+    }
+
+    public static function getEventLocations()
+    {
+        // Liefert jeden gespeicherten Ort nur einmal fuer die Auswahlliste des Filters.
+        $database = DatabaseFactory::getFactory()->getConnection();
+        $sql = "SELECT DISTINCT event_location
+                FROM events
+                WHERE event_location <> ''
+                ORDER BY event_location ASC";
         $query = $database->prepare($sql);
         $query->execute();
 

@@ -10,9 +10,18 @@ class EventController extends Controller
 
     public function index()
     {
-        // Laedt alle Events inklusive Belegung und uebergibt sie an die oeffentliche Uebersichtsseite.
+        // Liest die optionalen Suchwerte aus der URL, damit Filter beim Neuladen sichtbar bleiben.
+        $filters = array(
+            'title' => trim((string)Request::get('title')),
+            'date' => trim((string)Request::get('date')),
+            'location' => trim((string)Request::get('location'))
+        );
+
+        // Laedt nur Events, die zu den ausgewaehlten Suchkriterien passen.
         $this->View->render('event/index', array(
-            'events' => EventModel::getAllEvents()
+            'events' => EventModel::searchEvents($filters['title'], $filters['date'], $filters['location']),
+            'locations' => EventModel::getEventLocations(),
+            'filters' => $filters
         ));
     }
 

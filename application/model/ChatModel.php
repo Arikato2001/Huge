@@ -117,7 +117,8 @@ class ChatModel
 
         $query->closeCursor();
 
-        return $result->unread_messages;
+        // Gibt bei einem leeren Datenbankergebnis null ungelesene Nachrichten statt einer PHP-Warnung zurueck.
+        return $result ? (int)$result->unread_messages : 0;
     }
 
     /**
@@ -143,7 +144,8 @@ class ChatModel
 
         $query->closeCursor();
 
-        return $result->unread_messages;
+        // Gibt bei einem leeren Datenbankergebnis null ungelesene Nachrichten statt einer PHP-Warnung zurueck.
+        return $result ? (int)$result->unread_messages : 0;
     }
 
     /**

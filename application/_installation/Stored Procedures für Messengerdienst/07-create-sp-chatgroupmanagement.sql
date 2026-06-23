@@ -1,5 +1,6 @@
 DELIMITER $$
 
+DROP PROCEDURE IF EXISTS SP_CHAT_GROUP_MANAGEMENT$$
 CREATE PROCEDURE SP_CHAT_GROUP_MANAGEMENT
 (
     IN pUserId INT
@@ -31,7 +32,7 @@ BEGIN
     )
     SELECT
         vConversationId,
-        id
+        user_id
     FROM users;
 
     IF pUserId IS NOT NULL THEN
