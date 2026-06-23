@@ -15,6 +15,10 @@
     <?php if (View::checkForActiveController($filename, "gallery")) { ?>
         <link rel="stylesheet" href="<?php echo Config::get('URL'); ?>css/gallery.css?v=1" />
     <?php } ?>
+    <!-- Das zusaetzliche Event-Stylesheet wird nur auf Eventseiten geladen. -->
+    <?php if (View::checkForActiveController($filename, "event")) { ?>
+        <link rel="stylesheet" href="<?php echo Config::get('URL'); ?>css/event.css?v=1" />
+    <?php } ?>
 </head>
 <body>
     <!-- wrapper, to center website -->
@@ -23,6 +27,8 @@
         <!-- logo -->
         <div class="logo"></div>
 
+        <!-- Haelt die Hauptnavigation und die Benutzer-Navigation in einer gemeinsamen Zeile. -->
+        <div class="navigation-row">
         <!-- navigation -->
         <ul class="navigation">
             <li <?php if (View::checkForActiveController($filename, "index")) { echo ' class="active" '; } ?> >
@@ -30,6 +36,10 @@
             </li>
             <li <?php if (View::checkForActiveController($filename, "profile")) { echo ' class="active" '; } ?> >
                 <a href="<?php echo Config::get('URL'); ?>profile/index">Profiles</a>
+            </li>
+            <!-- Die Eventuebersicht ist fuer Besucher und eingeloggte Benutzer erreichbar. -->
+            <li <?php if (View::checkForActiveController($filename, "event")) { echo ' class="active" '; } ?> >
+                <a href="<?php echo Config::get('URL'); ?>event/index">Events</a>
             </li>
             <?php if (Session::userIsLoggedIn()) { ?>
                 <li <?php if (View::checkForActiveController($filename, "dashboard")) { echo ' class="active" '; } ?> >
@@ -84,6 +94,10 @@
                 </ul>
             </li>
             <?php if (Session::get("user_account_type") == 7) : ?>
+                <!-- Der direkte Verwaltungslink wird ausschliesslich Administratoren angezeigt. -->
+                <li>
+                    <a href="<?php echo Config::get('URL'); ?>event/admin">Eventverwaltung</a>
+                </li>
                 <li <?php if (View::checkForActiveController($filename, "admin")) {
                     echo ' class="active" ';
                 } ?> >
@@ -92,3 +106,4 @@
             <?php endif; ?>
         <?php endif; ?>
         </ul>
+        </div><!-- close class="navigation-row" -->

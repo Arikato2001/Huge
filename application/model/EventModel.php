@@ -292,7 +292,7 @@ class EventModel
 
     private static function validateRegistration($eventId, $participantName, $participantEmail)
     {
-        // Validiert die AP5-Pflichtdaten, damit Name, E-Mail und Event-ID vor dem Insert stimmen.
+        // Validiert die Pflichtdaten, damit Name, E-Mail und Event-ID vor dem Insert stimmen.
         if (!ctype_digit((string)$eventId)) {
             Session::add('feedback_negative', 'Ungueltige Event-ID.');
             return false;

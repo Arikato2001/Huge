@@ -8,6 +8,54 @@ class EventController extends Controller
         // checkAdminAuthentication steht bewusst in save/edit/delete statt hier, weil register/unregister fuer Besucher erreichbar sein muessen.
     }
 
+    public function index()
+    {
+        // Laedt alle Events inklusive Belegung und uebergibt sie an die oeffentliche Uebersichtsseite.
+        $this->View->render('event/index', array(
+            'events' => EventModel::getAllEvents()
+        ));
+    }
+
+    public function show($eventId)
+    {
+        // Holt genau das Event aus der URL, damit die Detailseite nur die ausgewaehlten Daten anzeigt.
+        $event = EventModel::getEvent($eventId);
+
+        // Leitet bei einer ungueltigen oder nicht vorhandenen ID kontrolliert zur Uebersicht zurueck.
+        if (!$event) {
+            Session::add('feedback_negative', 'Event wurde nicht gefunden.');
+            Redirect::to('event/index');
+            return;
+        }
+
+        // Stellt der Detailansicht das Event samt Teilnehmerzahl und freien Plaetzen bereit.
+        $this->View->render('event/show', array(
+            'event' => $event
+        ));
+    }
+
+    public function admin()
+    {
+        // Der komplette Verwaltungsbereich darf nur von Administratoren geoeffnet werden.
+        Auth::checkAdminAuthentication();
+
+        // Laedt zuerst alle Events, die anschliessend in einzelnen Bearbeitungsformularen dargestellt werden.
+        $events = EventModel::getAllEvents();
+        $participants = array();
+
+        // Ordnet jedem Event seine Teilnehmerliste anhand der Event-ID zu.
+        // Dadurch kann die View die passende Liste direkt unter dem jeweiligen Event ausgeben.
+        foreach ($events as $event) {
+            $participants[(int)$event->event_id] = EventModel::getParticipantsByEvent($event->event_id);
+        }
+
+        // Uebergibt beide Datenbereiche gemeinsam an die geschuetzte Admin-Oberflaeche.
+        $this->View->render('event/admin', array(
+            'events' => $events,
+            'participants' => $participants
+        ));
+    }
+
     public function save()
     {
         // Schuetzt das Speichern, weil nur Admins neue Events anlegen duerfen.
@@ -21,12 +69,14 @@ class EventController extends Controller
             Request::post('event_location'),
             Request::post('event_max_participants')
         );
-        Redirect::to('admin');
+
+        // Zeigt nach dem Speichern wieder die Verwaltung und dort die Rueckmeldung des Models an.
+        Redirect::to('event/admin');
     }
 
     public function edit()
     {
-        // Schuetzt das Bearbeiten, weil Eventverwaltung laut AP4 eine Admin-Funktion ist.
+        // Schuetzt das Bearbeiten, weil die Eventverwaltung eine Admin-Funktion ist.
         Auth::checkAdminAuthentication();
 
         // Aktualisiert ein bestehendes Event ueber das Model, damit Validierung und SQL nicht im Controller liegen.
@@ -38,7 +88,9 @@ class EventController extends Controller
             Request::post('event_location'),
             Request::post('event_max_participants')
         );
-        Redirect::to('admin');
+
+        // Kehrt nach der Bearbeitung zur aktualisierten Eventliste zurueck.
+        Redirect::to('event/admin');
     }
 
     public function delete($eventId)
@@ -48,7 +100,9 @@ class EventController extends Controller
 
         // Loescht ein Event ueber das Model, damit auch die ID-Pruefung an einer Stelle bleibt.
         EventModel::deleteEvent($eventId);
-        Redirect::to('admin');
+
+        // Laedt die Verwaltung neu, damit das geloeschte Event nicht mehr angezeigt wird.
+        Redirect::to('event/admin');
     }
 
     public function register()
@@ -63,7 +117,9 @@ class EventController extends Controller
             Request::post('participant_email'),
             $this->getCurrentUserId()
         );
-        Redirect::to('index');
+
+        // Bleibt nach der Aktion auf der Detailseite, damit freie Plaetze und Feedback sofort sichtbar sind.
+        Redirect::to('event/show/' . Request::post('event_id'));
     }
 
     public function unregister()
@@ -77,7 +133,9 @@ class EventController extends Controller
             Request::post('participant_email'),
             $this->getCurrentUserId()
         );
-        Redirect::to('index');
+
+        // Laedt dieselbe Detailseite nach der Stornierung mit dem aktualisierten Platzstand neu.
+        Redirect::to('event/show/' . Request::post('event_id'));
     }
 
     private function getCurrentUserId()
