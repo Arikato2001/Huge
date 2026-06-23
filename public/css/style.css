@@ -89,6 +89,37 @@ body {
 .navigation.right {
     float: right;
 }
+
+/*
+ * Ordnet die Hauptnavigation und die Benutzer-Navigation nebeneinander an.
+ * Die etwas kompakteren Links verhindern, dass der Adminbereich in eine zweite Zeile rutscht.
+ */
+.navigation-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
+}
+.navigation-row > .navigation {
+    display: flex;
+    flex-wrap: nowrap;
+}
+.navigation-row > .navigation.right {
+    float: none;
+    margin-left: auto;
+}
+.navigation-row > .navigation > li {
+    flex: 0 0 auto;
+    margin-right: 4px;
+}
+.navigation-row > .navigation > li:last-child {
+    margin-right: 0;
+}
+.navigation-row > .navigation > li > a {
+    padding-left: 10px;
+    padding-right: 10px;
+}
 .navigation li {
     float: left;
     margin-right: 5px;
