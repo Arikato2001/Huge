@@ -34,7 +34,12 @@
             <article class="event-panel event-admin-card">
                 <div class="event-admin-card-head">
                     <div>
-                        <span class="event-status"><?php echo (int)$event->participant_count; ?> / <?php echo (int)$event->event_max_participants; ?> Teilnehmer</span>
+                        <span class="event-status">
+                            <?php echo (int)$event->participant_count; ?> / <?php echo (int)$event->event_max_participants; ?> bestaetigt
+                            <?php if ((int)$event->pending_count > 0) { ?>
+                                · <?php echo (int)$event->pending_count; ?> ausstehend
+                            <?php } ?>
+                        </span>
                         <h2><?php echo $this->encodeHTML($event->event_title); ?></h2>
                     </div>
                     <!-- Die Sicherheitsabfrage verhindert versehentliches Loeschen durch einen einzelnen Klick. -->
@@ -60,12 +65,23 @@
                     <?php if ($eventParticipants) { ?>
                         <div class="event-table-wrap">
                             <table>
-                                <thead><tr><th>Name</th><th>E-Mail</th><th>Angemeldet am</th></tr></thead>
+                                <thead><tr><th>Name</th><th>E-Mail</th><th>Status</th><th>Angemeldet am</th></tr></thead>
                                 <tbody>
                                 <?php foreach ($eventParticipants as $participant) { ?>
+                                    <?php
+                                    // Der Status macht sichtbar, ob ein Platz bereits fix ist oder noch auf die E-Mail-Bestaetigung wartet.
+                                    if ((int)$participant->registration_confirmed === 1) {
+                                        $registrationStatus = 'Bestätigt';
+                                    } elseif ($participant->confirmation_expires_at && strtotime($participant->confirmation_expires_at) < time()) {
+                                        $registrationStatus = 'Abgelaufen';
+                                    } else {
+                                        $registrationStatus = 'Ausstehend';
+                                    }
+                                    ?>
                                     <tr>
                                         <td><?php echo $this->encodeHTML($participant->participant_name); ?></td>
                                         <td><?php echo $this->encodeHTML($participant->participant_email); ?></td>
+                                        <td><?php echo $registrationStatus; ?></td>
                                         <td><?php echo date('d.m.Y H:i', strtotime($participant->registration_created_at)); ?></td>
                                     </tr>
                                 <?php } ?>

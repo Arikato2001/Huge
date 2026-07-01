@@ -83,6 +83,7 @@ class Mail
             $mail->Username = Config::get('EMAIL_SMTP_USERNAME');
             $mail->Password = Config::get('EMAIL_SMTP_PASSWORD');
             $mail->Port = Config::get('EMAIL_SMTP_PORT');
+            $mail->Timeout = Config::get('EMAIL_SMTP_TIMEOUT');
 
         } else {
 

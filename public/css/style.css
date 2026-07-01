@@ -154,7 +154,7 @@ body {
     color: #454545;
 }
 
-.navigation > li.active a {
+.navigation > li.active > a {
     background: #fff;
     color: #454545;
 }

@@ -25,7 +25,7 @@ class EventController extends Controller
         ));
     }
 
-    public function show($eventId)
+    public function show($eventId = null)
     {
         // Holt genau das Event aus der URL, damit die Detailseite nur die ausgewaehlten Daten anzeigt.
         $event = EventModel::getEvent($eventId);
@@ -119,32 +119,69 @@ class EventController extends Controller
         // Initialisiert die Session, damit eingeloggte User optional mit ihrer User-ID gespeichert werden koennen.
         Session::init();
 
-        // Speichert eine Eventanmeldung mit Name und E-Mail und prueft dabei das Teilnehmerlimit im Model.
+        if (!Request::isPost()) {
+            Redirect::to('event/index');
+            return;
+        }
+
+        $eventId = Request::post('event_id');
+
+        if (!ctype_digit((string)$eventId)) {
+            Session::add('feedback_negative', 'Ungueltige Event-ID.');
+            Redirect::to('event/index');
+            return;
+        }
+
+        // Legt zuerst eine wartende Anmeldung an und versendet danach den Bestaetigungslink per E-Mail.
         EventModel::registerParticipant(
-            Request::post('event_id'),
+            $eventId,
             Request::post('participant_name'),
             Request::post('participant_email'),
             $this->getCurrentUserId()
         );
 
         // Bleibt nach der Aktion auf der Detailseite, damit freie Plaetze und Feedback sofort sichtbar sind.
-        Redirect::to('event/show/' . Request::post('event_id'));
+        Redirect::to('event/show/' . $eventId);
+    }
+
+    public function confirm($registrationId, $token)
+    {
+        // Initialisiert die Session, damit die Rueckmeldung nach dem Redirect angezeigt werden kann.
+        Session::init();
+
+        // Bestaetigt die Anmeldung anhand der ID und des geheimen Tokens aus der E-Mail.
+        $eventId = EventModel::confirmRegistration($registrationId, $token);
+
+        // Bei erfolgreicher Zuordnung geht es zur passenden Detailseite, sonst zur Eventuebersicht.
+        if ($eventId) {
+            Redirect::to('event/show/' . $eventId);
+            return;
+        }
+
+        Redirect::to('event/index');
     }
 
     public function unregister()
     {
         // Initialisiert die Session, damit eingeloggte User bei der Abmeldung optional beruecksichtigt werden.
         Session::init();
+        $eventId = Request::post('event_id');
+
+        if (!ctype_digit((string)$eventId)) {
+            Session::add('feedback_negative', 'Ungueltige Event-ID.');
+            Redirect::to('event/index');
+            return;
+        }
 
         // Storniert eine Anmeldung anhand von Event-ID und E-Mail, damit Besucher ihre Buchung zuruecknehmen koennen.
         EventModel::unregisterParticipant(
-            Request::post('event_id'),
+            $eventId,
             Request::post('participant_email'),
             $this->getCurrentUserId()
         );
 
         // Laedt dieselbe Detailseite nach der Stornierung mit dem aktualisierten Platzstand neu.
-        Redirect::to('event/show/' . Request::post('event_id'));
+        Redirect::to('event/show/' . $eventId);
     }
 
     private function getCurrentUserId()

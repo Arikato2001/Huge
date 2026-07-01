@@ -17,7 +17,7 @@
     <?php } ?>
     <!-- Das zusaetzliche Event-Stylesheet wird nur auf Eventseiten geladen. -->
     <?php if (View::checkForActiveController($filename, "event")) { ?>
-        <link rel="stylesheet" href="<?php echo Config::get('URL'); ?>css/event.css?v=1" />
+        <link rel="stylesheet" href="<?php echo Config::get('URL'); ?>css/event.css?v=2" />
     <?php } ?>
 </head>
 <body>
@@ -38,7 +38,7 @@
                 <a href="<?php echo Config::get('URL'); ?>profile/index">Profiles</a>
             </li>
             <!-- Die Eventuebersicht ist fuer Besucher und eingeloggte Benutzer erreichbar. -->
-            <li <?php if (View::checkForActiveController($filename, "event")) { echo ' class="active" '; } ?> >
+            <li <?php if (View::checkForActiveControllerAndAction($filename, "event/index") || View::checkForActiveControllerAndAction($filename, "event/show")) { echo ' class="active" '; } ?> >
                 <a href="<?php echo Config::get('URL'); ?>event/index">Events</a>
             </li>
             <?php if (Session::userIsLoggedIn()) { ?>
@@ -95,7 +95,7 @@
             </li>
             <?php if (Session::get("user_account_type") == 7) : ?>
                 <!-- Der direkte Verwaltungslink wird ausschliesslich Administratoren angezeigt. -->
-                <li>
+                <li <?php if (View::checkForActiveControllerAndAction($filename, "event/admin")) { echo ' class="active" '; } ?> >
                     <a href="<?php echo Config::get('URL'); ?>event/admin">Eventverwaltung</a>
                 </li>
                 <li <?php if (View::checkForActiveController($filename, "admin")) {

@@ -10,6 +10,16 @@
 class Request
 {
     /**
+     * Checks whether the current request was submitted via POST.
+     *
+     * @return bool
+     */
+    public static function isPost()
+    {
+        return isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST';
+    }
+
+    /**
      * Gets/returns the value of a specific key of the POST super-global.
      * When using just Request::post('x') it will return the raw and untouched $_POST['x'], when using it like
      * Request::post('x', true) then it will return a trimmed and stripped $_POST['x'] !

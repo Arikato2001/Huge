@@ -35,8 +35,9 @@ class EventModel
         $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
         $sql = "SELECT e.event_id, e.event_title, e.event_description, e.event_date, e.event_location,
                        e.event_max_participants, e.event_created_at,
-                       COUNT(r.registration_id) AS participant_count,
-                       (e.event_max_participants - COUNT(r.registration_id)) AS available_places
+                       COALESCE(SUM(CASE WHEN r.registration_confirmed = 1 THEN 1 ELSE 0 END), 0) AS participant_count,
+                       COALESCE(SUM(CASE WHEN r.registration_confirmed = 0 AND r.confirmation_expires_at >= NOW() THEN 1 ELSE 0 END), 0) AS pending_count,
+                       (e.event_max_participants - COALESCE(SUM(CASE WHEN r.registration_confirmed = 1 THEN 1 ELSE 0 END), 0)) AS available_places
                 FROM events e
                 LEFT JOIN event_registrations r ON r.event_id = e.event_id
                 " . $where . "
@@ -74,8 +75,9 @@ class EventModel
         $database = DatabaseFactory::getFactory()->getConnection();
         $sql = "SELECT e.event_id, e.event_title, e.event_description, e.event_date, e.event_location,
                        e.event_max_participants,
-                       COUNT(r.registration_id) AS participant_count,
-                       (e.event_max_participants - COUNT(r.registration_id)) AS available_places
+                       COALESCE(SUM(CASE WHEN r.registration_confirmed = 1 THEN 1 ELSE 0 END), 0) AS participant_count,
+                       COALESCE(SUM(CASE WHEN r.registration_confirmed = 0 AND r.confirmation_expires_at >= NOW() THEN 1 ELSE 0 END), 0) AS pending_count,
+                       (e.event_max_participants - COALESCE(SUM(CASE WHEN r.registration_confirmed = 1 THEN 1 ELSE 0 END), 0)) AS available_places
                 FROM events e
                 LEFT JOIN event_registrations r ON r.event_id = e.event_id
                 WHERE e.event_id = :event_id
@@ -98,6 +100,7 @@ class EventModel
         // Liefert gespeicherte Teilnehmerdaten, damit Admins spaeter die Eventbelegung nachvollziehen koennen.
         $database = DatabaseFactory::getFactory()->getConnection();
         $sql = "SELECT r.registration_id, r.participant_name, r.participant_email,
+                       r.registration_confirmed, r.confirmation_expires_at, r.registration_confirmed_at,
                        r.registration_created_at, u.user_id, u.user_name
                 FROM event_registrations r
                 LEFT JOIN users u ON u.user_id = r.user_id
@@ -191,8 +194,11 @@ class EventModel
         $database = DatabaseFactory::getFactory()->getConnection();
         $database->beginTransaction();
 
+        // Entfernt alte, nie bestaetigte Anmeldungen, damit abgelaufene Links keine Plaetze blockieren.
+        self::deleteExpiredRegistrations($database);
+
         // Sperrt das Event waehrend der Limitpruefung, damit parallele Anmeldungen keine Ueberbuchung erzeugen.
-        $eventQuery = $database->prepare("SELECT event_max_participants FROM events WHERE event_id = :event_id LIMIT 1 FOR UPDATE");
+        $eventQuery = $database->prepare("SELECT event_id, event_title, event_date, event_max_participants FROM events WHERE event_id = :event_id LIMIT 1 FOR UPDATE");
         $eventQuery->execute(array(':event_id' => (int)$eventId));
         $event = $eventQuery->fetch();
 
@@ -202,8 +208,11 @@ class EventModel
             return false;
         }
 
-        // Zaehlt aktuelle Anmeldungen innerhalb der Transaktion, damit das Limit auf dem neuesten Stand ist.
-        $countQuery = $database->prepare("SELECT COUNT(*) AS participant_count FROM event_registrations WHERE event_id = :event_id");
+        // Nur bestaetigte Anmeldungen belegen einen Platz. Beim Bestaetigen wird das Limit erneut geprueft.
+        $countQuery = $database->prepare("SELECT COUNT(*) AS participant_count
+                                          FROM event_registrations
+                                          WHERE event_id = :event_id
+                                            AND registration_confirmed = 1");
         $countQuery->execute(array(':event_id' => (int)$eventId));
         $participantCount = (int)$countQuery->fetch()->participant_count;
 
@@ -220,25 +229,131 @@ class EventModel
             return false;
         }
 
-        $sql = "INSERT INTO event_registrations (event_id, user_id, participant_name, participant_email)
-                VALUES (:event_id, :user_id, :participant_name, :participant_email)";
+        // Der rohe Token kommt nur in den Link; in der Datenbank liegt nur der Hash.
+        $confirmationToken = bin2hex(random_bytes(32));
+        $confirmationTokenHash = hash('sha256', $confirmationToken);
+
+        $sql = "INSERT INTO event_registrations
+                    (event_id, user_id, participant_name, participant_email, registration_confirmed,
+                     registration_confirmation_token, confirmation_expires_at)
+                VALUES
+                    (:event_id, :user_id, :participant_name, :participant_email, 0,
+                     :confirmation_token, DATE_ADD(NOW(), INTERVAL 24 HOUR))";
         $query = $database->prepare($sql);
         $query->execute(array(
             ':event_id' => (int)$eventId,
             ':user_id' => $userId ? (int)$userId : null,
             ':participant_name' => trim($participantName),
-            ':participant_email' => trim($participantEmail)
+            ':participant_email' => trim($participantEmail),
+            ':confirmation_token' => $confirmationTokenHash
         ));
 
         if ($query->rowCount() === 1) {
+            $registrationId = (int)$database->lastInsertId();
             $database->commit();
-            Session::add('feedback_positive', 'Anmeldung wurde gespeichert.');
-            return true;
+
+            // Die Mail wird erst nach dem Speichern gesendet, damit der Link auf einen echten Datensatz zeigt.
+            if (self::sendConfirmationMail($registrationId, $confirmationToken, $participantEmail, $participantName, $event)) {
+                Session::add('feedback_positive', self::getConfirmationMailFeedback($participantEmail));
+                return true;
+            }
+
+            // Wenn Mercury oder SMTP nicht erreichbar ist, wird die wartende Anmeldung wieder entfernt.
+            self::deleteRegistrationById($registrationId);
+            Session::add('feedback_negative', 'Bestaetigungs-E-Mail konnte nicht gesendet werden. Bitte pruefe Mercury.');
+            return false;
         }
 
         $database->rollBack();
         Session::add('feedback_negative', 'Anmeldung konnte nicht gespeichert werden.');
         return false;
+    }
+
+    public static function confirmRegistration($registrationId, $token)
+    {
+        // Prueft Linkbestandteile, bevor eine Datenbanktransaktion gestartet wird.
+        if (!ctype_digit((string)$registrationId) || !preg_match('/^[a-f0-9]{64}$/', (string)$token)) {
+            Session::add('feedback_negative', 'Bestaetigungslink ist ungueltig.');
+            return false;
+        }
+
+        $database = DatabaseFactory::getFactory()->getConnection();
+        $database->beginTransaction();
+
+        // Entfernt alte ausstehende Anmeldungen, damit abgelaufene Links nicht mehr bestaetigt werden koennen.
+        self::deleteExpiredRegistrations($database);
+
+        // Sperrt die Anmeldung, damit derselbe Link nicht parallel doppelt bestaetigt werden kann.
+        $registrationQuery = $database->prepare(
+            "SELECT r.registration_id, r.event_id, r.registration_confirmed,
+                    r.registration_confirmation_token, r.confirmation_expires_at,
+                    e.event_max_participants
+             FROM event_registrations r
+             INNER JOIN events e ON e.event_id = r.event_id
+             WHERE r.registration_id = :registration_id
+             LIMIT 1
+             FOR UPDATE"
+        );
+        $registrationQuery->execute(array(':registration_id' => (int)$registrationId));
+        $registration = $registrationQuery->fetch();
+
+        if (!$registration) {
+            $database->rollBack();
+            Session::add('feedback_negative', 'Anmeldung wurde nicht gefunden oder ist abgelaufen.');
+            return false;
+        }
+
+        if ((int)$registration->registration_confirmed === 1) {
+            $database->commit();
+            Session::add('feedback_positive', 'Diese Anmeldung wurde bereits bestaetigt.');
+            return (int)$registration->event_id;
+        }
+
+        // Vergleicht den Hash aus dem Link mit dem gespeicherten Hash, ohne den echten Token zu speichern.
+        $tokenHash = hash('sha256', $token);
+        if (!hash_equals((string)$registration->registration_confirmation_token, $tokenHash)) {
+            $database->rollBack();
+            Session::add('feedback_negative', 'Bestaetigungslink ist ungueltig.');
+            return false;
+        }
+
+        if (strtotime($registration->confirmation_expires_at) < time()) {
+            $database->rollBack();
+            Session::add('feedback_negative', 'Bestaetigungslink ist abgelaufen. Bitte melde dich erneut an.');
+            return false;
+        }
+
+        // Prueft beim Klick nochmals das Limit, weil mehrere Personen gleichzeitig einen Link erhalten koennen.
+        $countQuery = $database->prepare(
+            "SELECT COUNT(*) AS confirmed_count
+             FROM event_registrations
+             WHERE event_id = :event_id
+               AND registration_confirmed = 1"
+        );
+        $countQuery->execute(array(':event_id' => (int)$registration->event_id));
+        $confirmedCount = (int)$countQuery->fetch()->confirmed_count;
+
+        if ($confirmedCount >= (int)$registration->event_max_participants) {
+            $database->rollBack();
+            Session::add('feedback_negative', 'Event ist bereits voll. Deine Anmeldung konnte nicht bestaetigt werden.');
+            return (int)$registration->event_id;
+        }
+
+        // Nach erfolgreicher Bestaetigung wird der Token geloescht, damit der Link nicht erneut nutzbar ist.
+        $updateQuery = $database->prepare(
+            "UPDATE event_registrations
+             SET registration_confirmed = 1,
+                 registration_confirmation_token = NULL,
+                 confirmation_expires_at = NULL,
+                 registration_confirmed_at = NOW()
+             WHERE registration_id = :registration_id
+             LIMIT 1"
+        );
+        $updateQuery->execute(array(':registration_id' => (int)$registrationId));
+
+        $database->commit();
+        Session::add('feedback_positive', 'Deine Event-Anmeldung wurde bestaetigt.');
+        return (int)$registration->event_id;
     }
 
     public static function unregisterParticipant($eventId, $participantEmail, $userId = null)
@@ -332,6 +447,61 @@ class EventModel
         return (bool)$query->fetch();
     }
 
+    private static function deleteExpiredRegistrations($database)
+    {
+        // Abgelaufene, nicht bestaetigte Anmeldungen werden geloescht, damit Plaetze wieder frei werden.
+        $query = $database->prepare(
+            "DELETE FROM event_registrations
+             WHERE registration_confirmed = 0
+               AND confirmation_expires_at < NOW()"
+        );
+        $query->execute();
+    }
+
+    private static function deleteRegistrationById($registrationId)
+    {
+        // Wird genutzt, wenn zwar gespeichert wurde, aber keine Bestaetigungs-E-Mail versendet werden konnte.
+        $database = DatabaseFactory::getFactory()->getConnection();
+        $query = $database->prepare("DELETE FROM event_registrations WHERE registration_id = :registration_id LIMIT 1");
+        $query->execute(array(':registration_id' => (int)$registrationId));
+    }
+
+    private static function sendConfirmationMail($registrationId, $token, $participantEmail, $participantName, $event)
+    {
+        // Der Link zeigt auf den lokalen Controller und enthaelt ID plus geheimen Token.
+        $confirmationLink = Config::get('URL')
+            . Config::get('EMAIL_EVENT_CONFIRMATION_URL') . '/'
+            . (int)$registrationId . '/'
+            . $token;
+
+        $body = Config::get('EMAIL_EVENT_CONFIRMATION_CONTENT') . $confirmationLink . "\n\n"
+              . "Event: " . $event->event_title . "\n"
+              . "Datum: " . date('d.m.Y H:i', strtotime($event->event_date)) . " Uhr\n"
+              . "Name: " . trim($participantName) . "\n\n"
+              . "Der Link ist 24 Stunden gueltig.";
+
+        $mail = new Mail();
+        return $mail->sendMail(
+            trim($participantEmail),
+            Config::get('EMAIL_EVENT_CONFIRMATION_FROM_EMAIL'),
+            Config::get('EMAIL_EVENT_CONFIRMATION_FROM_NAME'),
+            Config::get('EMAIL_EVENT_CONFIRMATION_SUBJECT'),
+            $body
+        );
+    }
+
+    private static function getConfirmationMailFeedback($participantEmail)
+    {
+        $feedback = 'Bitte bestaetige deine Anmeldung ueber den Link in deiner E-Mail.';
+        $emailParts = explode('@', trim((string)$participantEmail));
+
+        if (count($emailParts) === 2 && strtolower($emailParts[1]) === 'event.local') {
+            $feedback .= ' In Mercury findest du die Mail im lokalen Postfach "' . $emailParts[0] . '".';
+        }
+
+        return $feedback;
+    }
+
     private static function validateRegistration($eventId, $participantName, $participantEmail)
     {
         // Validiert die Pflichtdaten, damit Name, E-Mail und Event-ID vor dem Insert stimmen.
@@ -350,7 +520,40 @@ class EventModel
             return false;
         }
 
+        if (!self::localMailboxExists($participantEmail)) {
+            Session::add('feedback_negative', 'Ungueltige E-Mail-Adresse. Bitte nutze ein vorhandenes Mercury-Postfach mit @' . Config::get('EMAIL_LOCAL_DOMAIN') . '.');
+            return false;
+        }
+
         return true;
+    }
+
+    private static function localMailboxExists($participantEmail)
+    {
+        $emailParts = explode('@', trim((string)$participantEmail));
+        if (count($emailParts) !== 2) {
+            return false;
+        }
+
+        $localDomain = strtolower((string)Config::get('EMAIL_LOCAL_DOMAIN'));
+        $emailDomain = strtolower($emailParts[1]);
+
+        if ($localDomain === '' || $emailDomain !== $localDomain) {
+            return false;
+        }
+
+        $mailboxBasePath = rtrim((string)Config::get('EMAIL_LOCAL_MAILBOX_PATH'), '/\\') . DIRECTORY_SEPARATOR;
+        if (!is_dir($mailboxBasePath)) {
+            return false;
+        }
+
+        foreach (scandir($mailboxBasePath) as $mailbox) {
+            if ($mailbox !== '.' && $mailbox !== '..' && strcasecmp($mailbox, $emailParts[0]) === 0) {
+                return is_dir($mailboxBasePath . $mailbox);
+            }
+        }
+
+        return false;
     }
 
     private static function validateEvent($title, $description, $eventDate, $location, $maxParticipants)

@@ -24,11 +24,22 @@ class Controller
         Auth::checkSessionConcurrency();
 
         // user is not logged in but has remember-me-cookie ? then try to login with cookie ("remember me" feature)
-        if (!Session::userIsLoggedIn() AND Request::cookie('remember_me')) {
+        if (!Session::userIsLoggedIn() AND Request::cookie('remember_me') AND !$this->shouldSkipRememberMeRedirect()) {
             header('location: ' . Config::get('URL') . 'login/loginWithCookie');
+            exit();
         }
 
         // create a view object to be able to use it inside a controller, like $this->View->render();
         $this->View = new View();
+    }
+
+    /**
+     * Some routes must stay public, even when a visitor has an old remember-me cookie.
+     */
+    private function shouldSkipRememberMeRedirect()
+    {
+        $url = strtolower(trim((string)Request::get('url'), '/'));
+
+        return strpos($url, 'event') === 0 || $url === 'login/loginwithcookie';
     }
 }

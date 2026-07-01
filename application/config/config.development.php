@@ -134,13 +134,16 @@ return array(
      * EMAIL_SMTP_AUTH: leave this true unless your SMTP service does not need authentication
      */
     'EMAIL_USED_MAILER' => 'phpmailer',
-    'EMAIL_USE_SMTP' => false,
-    'EMAIL_SMTP_HOST' => 'yourhost',
-    'EMAIL_SMTP_AUTH' => true,
-    'EMAIL_SMTP_USERNAME' => 'yourusername',
-    'EMAIL_SMTP_PASSWORD' => 'yourpassword',
-    'EMAIL_SMTP_PORT' => 465,
-    'EMAIL_SMTP_ENCRYPTION' => 'ssl',
+    'EMAIL_USE_SMTP' => true,
+    'EMAIL_SMTP_HOST' => 'localhost',
+    'EMAIL_SMTP_AUTH' => false,
+    'EMAIL_SMTP_USERNAME' => '',
+    'EMAIL_SMTP_PASSWORD' => '',
+    'EMAIL_SMTP_PORT' => 25,
+    'EMAIL_SMTP_ENCRYPTION' => '',
+    'EMAIL_SMTP_TIMEOUT' => 5,
+    'EMAIL_LOCAL_DOMAIN' => 'event.local',
+    'EMAIL_LOCAL_MAILBOX_PATH' => 'C:/xampp/MercuryMail/MAIL/',
     /**
      * Configuration for: Email content data
      */
@@ -154,4 +157,9 @@ return array(
     'EMAIL_VERIFICATION_FROM_NAME' => 'My Project',
     'EMAIL_VERIFICATION_SUBJECT' => 'Account activation for PROJECT XY',
     'EMAIL_VERIFICATION_CONTENT' => 'Please click on this link to activate your account: ',
+    'EMAIL_EVENT_CONFIRMATION_URL' => 'event/confirm',
+    'EMAIL_EVENT_CONFIRMATION_FROM_EMAIL' => 'Admin@event.local',
+    'EMAIL_EVENT_CONFIRMATION_FROM_NAME' => 'HUGE Event Management',
+    'EMAIL_EVENT_CONFIRMATION_SUBJECT' => 'Event-Anmeldung bestaetigen',
+    'EMAIL_EVENT_CONFIRMATION_CONTENT' => 'Bitte bestaetige deine Event-Anmeldung mit diesem Link: ',
 );

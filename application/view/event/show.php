@@ -29,6 +29,7 @@ $isFull = (int)$this->event->available_places <= 0;
             <?php if ($isFull) { ?>
                 <p class="event-full-message">Dieses Event ist bereits ausgebucht.</p>
             <?php } else { ?>
+                <p>Nach dem Absenden bekommst du eine E-Mail mit einem Bestätigungslink. Erst nach dem Klick ist dein Platz fix reserviert.</p>
                 <!-- Die Event-ID wird versteckt mitgesendet, damit das Backend die Anmeldung zuordnen kann. -->
                 <form action="<?php echo Config::get('URL'); ?>event/register" method="post" class="event-form">
                     <input type="hidden" name="event_id" value="<?php echo (int)$this->event->event_id; ?>" />
@@ -36,7 +37,7 @@ $isFull = (int)$this->event->available_places <= 0;
                     <input id="participant_name" type="text" name="participant_name" maxlength="120" required />
                     <label for="participant_email">E-Mail-Adresse</label>
                     <input id="participant_email" type="email" name="participant_email" maxlength="254" required />
-                    <input type="submit" value="Verbindlich anmelden" />
+                    <input type="submit" value="Bestätigungs-E-Mail anfordern" />
                 </form>
             <?php } ?>
         </section>
